@@ -39,8 +39,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "accounts",
     "rest_framework",
+    'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    'storages'
+    'rest_framework_simplejwt.token_blacklist',
+    'storages',
+    "django_rich",
 ]
 
 MIDDLEWARE = [
@@ -119,6 +122,36 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
+        },
+    },
+    "formatters": {
+        "rich": {
+            "datefmt": "[%X]",
+            "format": "%(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "filters": ["require_debug_true"],
+            "class": "django_rich_logging.logging.DjangoRequestHandler",
+        },
+    },
+    "loggers": {
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -141,8 +174,11 @@ USE_TZ = True
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=2),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'CHECK_REVOCATION_LOG': True,
 }
 
 # Static files (CSS, JavaScript, Images)
