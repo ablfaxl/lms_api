@@ -3,9 +3,9 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from  rest_framework import status
+from  rest_framework import status, viewsets
 from accounts.models import CustomUser
-from accounts.serializer import RegisterSerializer, ProfileSerializer
+from accounts.serializer import RegisterSerializer, ProfileSerializer, UserSerializer, AvatarUpdateSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -48,3 +48,19 @@ class ProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user.profile
 
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = CustomUser.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return RegisterSerializer
+        return UserSerializer
+
+
+class AvatarUpdateView(generics.UpdateAPIView):
+    serializer_class = AvatarUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.profile
