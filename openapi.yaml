@@ -1,0 +1,323 @@
+openapi: 3.0.3
+: Local development server
+  - url: https://your-production-domain.com/api/v1
+    description: Production server (override when deployed)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /login/:
+    post:
+      summary: Obtain JWT access & refresh tokens
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Tokens obtained
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+                  refresh: { type: string }
+        '401': { description: Invalid credentials }
+
+  /register/:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, first_name, last_name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                first_name: { type: string }
+                last_name: { type: string }
+      responses:
+        '201': { description: User created }
+        '400': { description: Validation error }
+
+  /auth/register/:
+    post:
+      $ref: '#/paths/~1register~/post'
+
+  /refresh-token/:
+    post:
+      summary: Refresh access token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh]
+              properties:
+                refresh: { type: string }
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access: { type: string }
+
+  /courses/:
+    get:
+      summary: List all courses (public)
+      tags: [Courses]
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Course' }
+
+  /courses/{id}/:
+    get:
+      summary: Course outline (public)
+      tags: [Courses]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Course details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseDetail' }
+        '404': { description: Not found }
+
+  /stats/:
+    get:
+      summary: Platform statistics (public)
+      tags: [Stats]
+      responses:
+        '200':
+          description: Statistics object
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Stats' }
+
+  /newsletter/:
+    post:
+      summary: Subscribe to newsletter
+      tags: [Newsletter]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '201': { description: Subscribed }
+        '400': { description: Invalid email or already subscribed }
+
+  /me/:
+    get:
+      summary: Current user profile (authenticated)
+      tags: [Users]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User details + role flags
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserMe' }
+        '401': { description: Not authenticated }
+
+  /admin/overview/:
+    get:
+      summary: Platform admin overview
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Admin dashboard data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminOverview' }
+        '403': { description: Admin only }
+
+  /enrollments/:
+    get:
+      summary: My enrolled courses
+      tags: [Enrollments]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Enrollment' }
+
+  /courses/{id}/enroll/:
+    post:
+      summary: Enrol into a course
+      tags: [Enrollments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '201': { description: Enrolled successfully }
+        '400': { description: Already enrolled or course invalid }
+        '401': { description: Not authenticated }
+
+  /messages/conversations/:
+    get:
+      summary: List my conversations
+      tags: [Messaging]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Conversation' }
+
+  /notifications/:
+    get:
+      summary: Get unread notifications
+      tags: [Notifications]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        first_name: { type: string }
+        last_name: { type: string }
+        role: { type: string, enum: [student, instructor, admin] }
+
+    UserMe:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            is_student: { type: boolean }
+            is_instructor: { type: boolean }
+            is_admin: { type: boolean }
+
+    Course:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        instructor: { $ref: '#/components/schemas/User' }
+
+    CourseDetail:
+      allOf:
+        - $ref: '#/components/schemas/Course'
+        - type: object
+          properties:
+            syllabus: { type: string }
+            enrolled_users_count: { type: integer }
+
+    Stats:
+      type: object
+      properties:
+        total_courses: { type: integer }
+        total_students: { type: integer }
+        total_instructors: { type: integer }
+        active_enrollments: { type: integer }
+
+    Enrollment:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        course: { $ref: '#/components/schemas/Course' }
+        enrolled_at: { type: string, format: date-time }
+        status: { type: string, enum: [active, completed, dropped] }
+
+    Conversation:
+      type: object
+      properties:
+        id: { type: integer }
+        participants: { type: array, items: { $ref: '#/components/schemas/User' } }
+        last_message: { type: string }
+        updated_at: { type: string, format: date-time }
+
+    Message:
+      type: object
+      properties:
+        id: { type: integer }
+        conversation: { type: integer }
+        sender: { $ref: '#/components/schemas/User' }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+        is_read: { type: boolean }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string }
+        content: { type: string }
+        is_read: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    AdminOverview:
+      type: object
+      properties:
+        total_users: { type: integer }
+        total_courses: { type: integer }
+        total_enrollments: { type: integer }
+        recent_activity: { type: array, items: { type: object } }
+
+  # WebSocket documentation (informational)
+  x-webSocket:
+    description: |
+      Live chat and notifications are available via WebSocket at:
+      `ws://127.0.0.1:8000/ws/chat/?token=<JWT_ACCESS_TOKEN>`
+      Supports message sending, typing events, read receipts, and notifications.
