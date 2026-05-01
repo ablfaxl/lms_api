@@ -7,6 +7,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-6ba539?logo=openapi-initiative)](openapi.yaml)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-ablfaxl%2Flms_api-181717?logo=github)](https://github.com/ablfaxl/lms_api)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-PsymoNiko%2Flms_api-181717?logo=github)](https://github.com/PsymoNiko/lms_api)
 
 Backend for the LMS platform built with **Django 5.2** + **Django REST Framework** + **JWT** + **WebSockets** (Django Channels).  
