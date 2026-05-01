@@ -12,6 +12,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lms_network
 
   rustfs:
     image: rustfs/rustfs:1.0.0-alpha.76
@@ -39,8 +41,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - lms_network
 
 volumes:
   postgres_data:
   rustfs_data:
   rustfs_logs:
+
+networks:
+  lsm_network:
+  name: lms_network
