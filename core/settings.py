@@ -10,23 +10,58 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
+import socket
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from botocore.client import Config
+from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name: str, default: int) -> int:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        return default
+
+
+def _host_is_reachable(host: str, port: int, timeout: float = 1.5) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h@&1c8qift9ua8+b6evx8)_el_=pou=s&p+t6njo^f9^-s-8^r"
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-h@&1c8qift9ua8+b6evx8)_el_=pou=s&p+t6njo^f9^-s-8^r",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["*"]
+DEBUG = env_bool("DEBUG", True)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "*").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -113,18 +148,50 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "lms_db",
-        "USER": "myuser",
-        "PASSWORD": "mypassword",
-        "HOST": "127.0.0.1",  # or 'db' if using Docker
-        "PORT": "5432",
-        # Reuse connections under load (set DB_CONN_MAX_AGE=0 to disable).
-        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.postgresql")
+DB_NAME = os.getenv("DB_NAME", "lms_db")
+DB_USER = os.getenv("DB_USER", "myuser")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "mypassword")
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = env_int("DB_PORT", 5432)
+DB_CONN_MAX_AGE = env_int("DB_CONN_MAX_AGE", 60)
+DB_FALLBACK_TO_SQLITE = env_bool("DB_FALLBACK_TO_SQLITE", True)
+DB_FALLBACK_TIMEOUT_SEC = float(os.getenv("DB_FALLBACK_TIMEOUT_SEC", "1.5"))
+SQLITE_PATH = os.getenv("SQLITE_PATH", str(BASE_DIR / "db.sqlite3"))
+
+use_sqlite = DB_ENGINE == "django.db.backends.sqlite3"
+if DEBUG and DB_FALLBACK_TO_SQLITE and not use_sqlite:
+    if not _host_is_reachable(DB_HOST, DB_PORT, DB_FALLBACK_TIMEOUT_SEC):
+        warnings.warn(
+            (
+                f"Database host {DB_HOST}:{DB_PORT} is unreachable. "
+                f"Falling back to SQLite at {SQLITE_PATH} (development mode)."
+            ),
+            RuntimeWarning,
+        )
+        use_sqlite = True
+
+if use_sqlite:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": SQLITE_PATH,
+            "CONN_MAX_AGE": DB_CONN_MAX_AGE,
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": DB_ENGINE,
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": str(DB_PORT),
+            # Reuse connections under load (set DB_CONN_MAX_AGE=0 to disable).
+            "CONN_MAX_AGE": DB_CONN_MAX_AGE,
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -221,18 +288,22 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 # django-cors-headers: use full origins ( "*" is not valid for CORS_ALLOWED_ORIGINS ).
 # Cannot combine CORS_ALLOW_ALL_ORIGINS with CORS_ALLOW_CREDENTIALS=True (browser spec).
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 
 
 # AWS / RustFS Settings
 
-AWS_ACCESS_KEY_ID = 'minioadmin'
-AWS_SECRET_ACCESS_KEY = 'minioadmin123'
-AWS_STORAGE_BUCKET_NAME = 'media'
-AWS_S3_ENDPOINT_URL = 'http://127.0.0.1:9000'
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "minioadmin")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "minioadmin123")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "media")
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://127.0.0.1:9000")
 
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/'
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
