@@ -123,10 +123,29 @@ Check GET /api/v1/me/ for frontend feature gating.
 
 ---
 
+🗺️ Database Schema Diagram
+
+Generate an ER diagram image automatically from Django models:
+
+```bash
+python manage.py generate_schema_diagram
+```
+
+This command writes the diagram to:
+
+- `docs/images/db_schema.png`
+
+Then the README can show it directly:
+
+![Database schema diagram](docs/images/db_schema.png)
+
+The diagram is generated directly from Django model metadata and saved as a PNG image.
+
+---
+
 ⚠️ Important notes
 
-· core/settings.py currently uses development defaults (DEBUG=True, hardcoded DB credentials).
-    Switch to environment variables before production!
+· Environment is loaded from `.env` (see `.env.sample`), including DB settings.
 · Channel layer is in‑memory. Use Redis for production.
 · Browsable API is enabled only when DEBUG=True.
 
@@ -143,4 +162,3 @@ Detailed contracts and checklists are in the docs/ folder:
 
 
 
-!
